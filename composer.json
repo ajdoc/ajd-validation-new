@@ -1,0 +1,30 @@
+{
+    "name": "ajd/ajd-validation-filter",
+    "description": "Validation and Filtering Library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Aj Doc"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=8.1",
+        "ajd/ajd-dic": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "AjdVal\\": "src"
+        }
+    },
+    "require-dev": {
+        "pestphp/pest": "2.x-dev",
+        "doctrine/annotations": "^1.13|^2",
+        "marwanalsoltany/mighty": "^1.2@dev"
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
