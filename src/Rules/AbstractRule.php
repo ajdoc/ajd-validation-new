@@ -7,6 +7,8 @@ use AjdVal\Builder;
 use AjdVal\Factory;
 use AjdVal\Context;
 use AjdVal\Exceptions;
+use AjdVal\Traits;
+use AjdVal\Utils\Utils;
 use AjDic\AjDic;
 use AjdVal\ValidatorDto;
 use AjdVal\Expression;
@@ -14,11 +16,21 @@ use AjdVal\Exceptions\ValidationExceptions;
 use AjdVal\Errors\ErrorCollection;
 use AjdVal\Errors\Error;
 use AjdVal\Errors\ErrorBuilder;
+use AjdVal\Validators\ValidatorsInterface;
+use AjdVal\Handlers\HandlerDto;
+use AjdVal\Traits\ValidatorsTrait;
+
+use Stringable;
 use RuntimeException;
 use InvalidArgumentException;
 
 abstract class AbstractRule implements Contracts\RuleInterface
 {
+	use Traits\CanHandlerStack;
+	use Traits\RuleCreatorTrait;
+
+	public static RuleHandlerStrategy $ruleHandlerStrategy = RuleHandlerStrategy::AutoCreate;
+
 	protected Context\ContextFactoryInterface $contextFactory;
 	protected Context\ContextInterface $context;
 	protected ValidatorDto $ruleValidatorDto;
@@ -26,22 +38,56 @@ abstract class AbstractRule implements Contracts\RuleInterface
 	protected ErrorCollection $errorCollection;
 
 	protected Expression\ExpressionDefinition $expressionCreated;
+	protected ValidatorsInterface $validator;
 
 	protected string $name;
 	protected array $adhocErrors = [];
 
-	public function __construct(mixed $options = null)
-    {
-    	$options = $this->normalizeOptions($options);
+	protected array $passedArguments = [];
 
-    	foreach ($options as $name => $value) {
-        	$this->$name = $value;
-        }
+	public function __construct(HandlerDto|null $handler = null)
+    {
+        $this->initHandler($handler, func_get_args());
 
         $this->errorCollection = new ErrorCollection;
     }
 
-    public function setExpressionDefinition(Expression\ExpressionDefinition $expressionCreated)
+    public function initHandler(HandlerDto|null $handler = null, array $arguments = []) 
+    {
+    	if (! is_null($handler)) {
+			$this->setErrorMessage($handler?->message ?? '');
+			$this->setArguments($handler->getOptions());
+		} else {
+			$this->setArguments($arguments);
+		}
+    }
+
+    public function setArguments(array $arguments): void
+    {
+    	$this->passedArguments = $arguments;
+    }
+
+    public function getArguments(): array
+    {
+    	return $this->passedArguments;
+    }
+
+    public function setValidator(ValidatorsInterface $validator): void
+    {
+    	$this->validator = $validator;
+    }
+
+    public function getValidator(): ValidatorsInterface
+    {
+    	return $this->validator;
+    }
+
+    public function getValidationClass(): string
+    {
+    	return $this->ruleValidatorDto->getValidatorBuilder()->getValidationClass();
+    }
+
+    public function setExpressionDefinition(Expression\ExpressionDefinition $expressionCreated): void
     {
     	$this->expressionCreated = $expressionCreated;
     }
@@ -54,6 +100,18 @@ abstract class AbstractRule implements Contracts\RuleInterface
     public function getErrors(): ErrorCollection
     {
     	return $this->errorCollection;
+    }
+
+    public function setErrorMessage(string|Stringable $message): static
+    {
+    	if (empty($message)) {
+    		return $this;
+    	}
+
+    	return $this->setAdhocErrors([
+    		'messages' => [$message],
+    		'rules' => [$this]
+    	]);
     }
 
     public function setAdhocErrors(array $errors): static
@@ -70,17 +128,15 @@ abstract class AbstractRule implements Contracts\RuleInterface
 
     public function formatAdhocError(string $separator = ''): string 
     {
-    	if (empty($this->adhocErrors)) {
+    	if (! isset($this->adhocErrors['messages']) || empty($this->adhocErrors['messages'])) {
     		return '';
     	}
 
     	if (empty($separator)) {
-    		$errorIndent = str_replace([':'], [''], Error::$errorIndent);
-    		$errorIndent = preg_replace('/[\n]/', '', $errorIndent);
-    		$separator = PHP_EOL.$errorIndent;
+    		$separator = PHP_EOL.Error::cleanErrorIndent(Error::$errorIndent);
     	}
 
-    	return implode($separator, $this->adhocErrors);
+    	return implode($separator, $this->adhocErrors['messages']);
     }
 
     public function buildError()
@@ -98,86 +154,6 @@ abstract class AbstractRule implements Contracts\RuleInterface
         $this->name = $name;
 
         return $this;
-    }
-
-	public function getDefaultOption()
-    {
-        return null;
-    }
-
-    public function getRequiredOptions()
-    {
-        return [];
-    }
-
-    protected function normalizeOptions(mixed $options): array
-    {
-        $normalizedOptions = [];
-        $defaultOption = $this->getDefaultOption();
-        $invalidOptions = [];
-        $missingOptions = array_flip((array) $this->getRequiredOptions());
-        $knownOptions = get_class_vars(static::class);
-
-        if (\is_array($options) && isset($options['value']) && !property_exists($this, 'value')) {
-            if (null === $defaultOption) {
-                throw new InvalidArgumentException(sprintf('No default option is configured for rule "%s".', static::class));
-            }
-
-            $options[$defaultOption] = $options['value'];
-            unset($options['value']);
-        }
-
-        if (\is_array($options)) {
-            reset($options);
-        }
-        if ($options && \is_array($options) && \is_string(key($options))) {
-            foreach ($options as $option => $value) {
-                if (\array_key_exists($option, $knownOptions)) {
-                    $normalizedOptions[$option] = $value;
-                    unset($missingOptions[$option]);
-                } else {
-                    $invalidOptions[] = $option;
-                }
-            }
-        } elseif (null !== $options && !(\is_array($options) && 0 === \count($options))) {
-
-        	if (is_array($options) && is_numeric(key($options))) {
-        		$knownOptionsTolist = array_values($knownOptions);
-        		$knownOptionsTolist = array_combine(array_keys($knownOptionsTolist), array_keys($knownOptions));
-        		
-        		foreach ($options as $key => $value) {
-        			if (\array_key_exists($key, $knownOptionsTolist)) {
-	                    $normalizedOptions[$knownOptionsTolist[$key]] = $value;
-	                    unset($missingOptions[$knownOptionsTolist[$key]]);
-	                } else {
-	                    $invalidOptions[] = $knownOptionsTolist[$key];
-	                }
-        		}
-
-        	} else {
-
-	            if (null === $defaultOption) {
-	                throw new InvalidArgumentException(sprintf('No default option is configured for rule "%s".', static::class));
-	            }
-
-	             if (\array_key_exists($defaultOption, $knownOptions)) {
-	                $normalizedOptions[$defaultOption] = $options;
-	                unset($missingOptions[$defaultOption]);
-	            } else {
-	                $invalidOptions[] = $defaultOption;
-	            }
-	        }
-        }
-
-        if (\count($invalidOptions) > 0) {
-            throw new InvalidArgumentException(sprintf('The options "%s" do not exist in rule "%s".', implode('", "', $invalidOptions), static::class), $invalidOptions);
-        }
-
-        if (\count($missingOptions) > 0) {
-            throw new InvalidArgumentException(sprintf('The options "%s" must be set for rule "%s".', implode('", "', array_keys($missingOptions)), static::class), array_keys($missingOptions));
-        }
-
-        return $normalizedOptions;
     }
 	 
     public function setContextFactory(Context\ContextFactoryInterface $contextFactory): void
@@ -299,11 +275,11 @@ abstract class AbstractRule implements Contracts\RuleInterface
     {
     	$reportRule = ! is_null($rule) ? $rule : $this;
     	$class = get_class($reportRule);
-
+    	
     	$validatorBuilder = $this->ruleValidatorDto->getValidatorBuilder();
     	$exceptionsFactory = $validatorBuilder->getRulesExceptionFactory();
 
-    	$exception = $exceptionsFactory->generate($this->getShortNameClass($class), null, ...$extraParams);
+    	$exception = $exceptionsFactory->generate(Utils::getShortNameClass($class), null, ...$extraParams);
 
     	if (is_null($exception)) {
     		return null;
@@ -329,12 +305,6 @@ abstract class AbstractRule implements Contracts\RuleInterface
 
     	return $exception;
 
-    }
-
-    private function getShortNameClass($class, Factory\FactoryTypeEnum $suffix = Factory\FactoryTypeEnum::TYPE_RULES)
-    {
-    	$segments = \explode('\\', $class);
-    	return \strtolower(\str_replace([$suffix->value], [''], \end($segments)));
     }
 
     private function updateExceptionTemplate(ValidationExceptions $exception): void

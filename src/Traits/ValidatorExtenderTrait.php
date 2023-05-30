@@ -16,8 +16,16 @@ trait ValidatorExtenderTrait
 
 	public static function addRuleExceptionsLookup(string $namespace, string $directory): self
 	{
-		Factory\RulesFactory::RuleExceptionsFactory($namespace);
-		Factory\RulesFactory::RuleExceptionsFactory($directory);
+		Factory\RuleExceptionsFactory::addNamespace($namespace);
+		Factory\RuleExceptionsFactory::addDirectory($directory);
+
+		return self::create();
+	}
+
+	public static function addRuleHandlersLookup(string $namespace, string $directory): self
+	{
+		Factory\RuleHandlersFactory::addNamespace($namespace);
+		Factory\RuleHandlersFactory::addDirectory($directory);
 
 		return self::create();
 	}

@@ -8,75 +8,132 @@ use AjdVal\Expression\ExpressionBuilderValidator;
 use AjdVal\Utils\Utils;
 use AjdVal\Exceptions\ValidationExceptions;
 use InvalidArgumentException;
+use Throwable;
 
 trait ExpressionValidationTrait
 {
-	public function validateOne(mixed $value, ExpressionBuilderValidator|string $validation): bool
+    public function validateOne(mixed $value, ExpressionBuilderValidator|string $validation): bool
     {
-        $basis = strval($validation);
+        try {
+            $basis = strval($validation);
 
-        $validation = trim($validation);
-        $behavior   = substr($validation, 0, 1);
-        $behaviors  = [
-            ExpressionBehavior::Optimistic->value  => true,
-            ExpressionBehavior::Pessimistic->value => false,
-        ];
-        $behavior   = $behaviors[$behavior] ?? null;
-        $validation = $behavior === null ? $validation : substr($validation, 1);
-
-        $expression  = $rules = ExpressionEngine::cleanExpression($validation);
-        $results     = [];
-        $validations = [];
-        $metadata = [];
-
-        $checks = ExpressionEngine::parseExpression($expression);
-        
-        foreach ($checks as ['name' => $name, 'statement' => $statement]) {
-            $isReversed = false;
-
-            if ((bool) preg_match('/[\~]/', $name) !== false) {
-                $isReversed = true;
-            }
-
-            $name = str_replace('~', '', $name);
-            $statement = str_replace('~', '', $statement);
+            $validation = trim($validation);
+            $behavior   = substr($validation, 0, 1);
             
-            $resultDetails = $this->executeRule($name, $statement, $value);
-            $result = $resultDetails['result'];
+            $behaviors  = [
+                ExpressionBehavior::Optimistic->value  => true,
+                ExpressionBehavior::Pessimistic->value => false,
+            ];
+            $behavior   = $behaviors[$behavior] ?? null;
+            $validation = $behavior === null ? $validation : substr($validation, 1);
 
-            $validations[$name] = $results[$statement] = $result;
+            $expression  = $rules = ExpressionEngine::cleanExpression($validation);
+            $results     = [];
+            $validations = [];
+            $metadata = [];
 
-            $metadata[$name] = $resultDetails;
-            $metadata[$name]['isReversed'] = $isReversed;
+            $checks = ExpressionEngine::parseExpression($expression);
+            
+            foreach ($checks as $key => ['name' => $name, 'statement' => $statement]) {
+                $isReversed = false;
 
-            if ($result === $behavior) {                
-                $names       = array_column($checks, 'name');
-                $statements  = array_column($checks, 'statement');
-                $validations = array_merge(array_fill_keys($names, null), $validations);
-                $metadata    = array_merge(array_fill_keys($names, null), $metadata);
-                $results     = array_merge(array_combine($statements, array_fill(0, count($checks), $behavior)), $results);
+                if ((bool) preg_match('/[\~]/', $name) !== false) {
+                    $isReversed = true;
+                }
 
-                break;
+                $name = str_replace('~', '', $name);
+                
+                $resultDetails = $this->executeRule($name, $statement, $value);
+                $result = $resultDetails['result'];
+
+                $validations[$key][$name] = $results[$key][$statement] = $result;
+                $metadata[$key][$name] = $resultDetails;
+                $metadata[$key][$name]['isReversed'] = $isReversed;
+
+                if ($result === $behavior) {  
+
+                    $names       = $this->cleanNameToArray(array_column($checks, 'name'));
+                    $statements  = array_column($checks, 'statement');
+                    $nameArr  = [];
+
+                    foreach ($names as $name) {
+                        $nameArr[][$name] = null;
+                    }
+
+                    foreach ($validations as $keyR => $validation) {
+                        foreach ($validation as $name => $result) {
+                            $validations[$keyR][$name] = $nameArr[$keyR][$name] ?? $result;
+                        }
+                    }
+
+                    $filledChecks = array_fill(0, count($checks), $behavior);
+                    $realStatement = [];
+                    foreach ($statements as $keyS => $ruleName) {
+                        $realStatement[$keyS][$ruleName] = $filledChecks[$keyS] ?? false;
+                    }
+
+                    $realResults = [];
+                    foreach ($results as $keyB => $result) {
+                        foreach ($result as $name => $r) {
+                            $realResults[$keyB][$name] = $realStatement[$keyB][$name] ?? $r;
+                        }
+                    }
+                    
+                    $results = $realResults;
+
+                    $realMetadata = [];
+
+                    foreach ($metadata as $keyC => $data) {
+                        foreach ($data as $name => $r) {
+                            $realMetadata[$keyC][$name] = $r;
+                            $realMetadata[$keyC][$name]['result'] = $realStatement[$keyC][$name] ?? $r;
+                        }
+                    }
+
+                    $metadata = $realMetadata;
+                }
             }
-        }
-        
-        ['result' => $result, 'expression' => $expression] = ExpressionEngine::evaluateExpression($expression, $results);
+            
+            ['result' => $result, 'expression' => $expression] = ExpressionEngine::evaluateExpression($expression, $results, true);
+            
+            $errors = $result ? [] : $this->createErrorMessages($metadata);
 
-        $errors = $result ? [] : $this->createErrorMessages($metadata);
-        
-        if (!empty($errors)) {
-            $this->setAdhocErrors($errors);
+            $adhocErrors = $this->getAdhocErrors();
+            
+            if (! empty($errors)) {
+                
+                if (empty($adhocErrors)) {
+                    $this->setAdhocErrors($errors);
+                }
+
+                if (! empty($adhocErrors)) {
+                    $this->setAdhocErrors(array_merge($adhocErrors, $errors));   
+                }
+            }
+
+            return $result;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    protected function cleanNameToArray(array $names): array 
+    {
+        foreach($names as $key => $name) {
+            $name = str_replace('~', '', $name);
+
+            $names[$key] = $name;
         }
 
-        return $result;
+        return $names;
     }
 
     protected function executeRule(string $name, string $statement, $input): array
     {
         $rule = $this->definitions[$name] ?? null;
-
         /** @var Rule|null $rule */
         if ($rule === null) {
+
             $names = array_merge(
                 array_keys($this->definitions),
             );
@@ -107,30 +164,55 @@ trait ExpressionValidationTrait
 
     protected function createErrorMessages(array $metadata): array
     {
+        $errors = [
+            'messages' => [],
+            'rules' => [],
+            'exceptions' => []
+        ];
+
+        foreach ($metadata as $key => $metadata) {
+
+            foreach ($metadata as $data) {
+                if ($data['isReversed']) {
+                    $check = $data['result'] !== false;
+                } else {
+                    $check = $data['result'] === false;
+                }
+
+                if ($check) {
+                    $rule = $data['rule'];
+
+                    $instance = $rule->getRuleInstance();
+
+                    $exception = $instance->reportError(null);
+                    
+                    if ($data['isReversed']) {
+                        $exception->setMode(ValidationExceptions::ERR_NEGATIVE);
+                    }
+
+                    $adhocErr = $instance->getAdhocErrors();
+                    
+                    if (isset($adhocErr['messages']) && ! empty($adhocErr['messages'])) {
+                        $errors['messages'] = array_merge($errors['messages'], $adhocErr['messages']);
+                    } else {
+                        $errors['messages'][] = $exception->getExceptionMessage();       
+                    }
+
+                    if (isset($adhocErr['rules']) && ! empty($adhocErr['rules'])) {
+                        $errors['rules'] = array_merge($errors['rules'], $adhocErr['rules']);
+                    } else {
+                        $errors['rules'][] = $instance;
+                    }
+
+                    if (isset($adhocErr['exceptions']) && ! empty($adhocErr['exceptions'])) {
+                        $errors['exceptions'] = array_merge($errors['exceptions'], $adhocErr['exceptions']);                                
+                    } else {
+                        $errors['exceptions'][] = $exception;
+                    }
+                }
+            }
+        }
         
-        $errors = array_filter($metadata, function($metadata) {
-            if ($metadata['isReversed']) {
-                return $metadata['result'] !== false;   
-            } else {
-                return $metadata['result'] === false;    
-            }
-        });
-
-        /** @var array<string,string> $errors */
-        // make a message for each validation and inject the necessary variables
-        array_walk($errors, function (&$value, $name) {
-            $rule = $value['rule'];
-            $instance = $rule->getRuleInstance();
-
-            $exception = $instance->reportError(null);
-            
-            if ($value['isReversed']) {
-                $exception->setMode(ValidationExceptions::ERR_NEGATIVE);
-            }
-
-            $value = $exception->getExceptionMessage();
-        });
-
         return $errors;
     }
 }

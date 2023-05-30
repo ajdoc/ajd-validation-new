@@ -49,7 +49,12 @@ class Error
             $code = ' (code '.$code.')';
         }
 
-        return $class.$propertyPath.":\n    ".$this->getMessage().$code;
+        if (empty($class) && empty($propertyPath)) {
+            
+            return static::cleanErrorIndent(static::$errorIndent).$this->getMessage().$code;
+        }
+
+        return $class.$propertyPath.static::$errorIndent.$this->getMessage().$code;
     }
 
     public function getMessageTemplate(): string

@@ -12,7 +12,15 @@ trait ErrorsTrait
 	protected static $maxDepthOfString = 5;
     protected static $maxCountOfString = 10;
 
-	public function replaceErrorPlaceholder(array $message_details, string $message): string
+    public static function cleanErrorIndent(string $indent): string 
+    {
+        $indent = str_replace([':'], [''], $indent);
+        $indent = preg_replace('/[\n]/', '', $indent);
+
+        return $indent;
+    }
+
+	public static function replaceErrorPlaceholder(array $message_details, string $message): string
 	{
 		$newMessage = static::formatError($message_details, $message);
 		$newMessage = static::formatError($message_details, $newMessage, '/:(\w+)/');

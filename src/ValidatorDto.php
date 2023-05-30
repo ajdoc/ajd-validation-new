@@ -7,6 +7,7 @@ use AjdVal\Parsers\ParserInterface;
 use AjdVal\Parsers\ParserChain;
 use AjdVal\Parsers\Factory\MetadataFactoryInterface;
 use AjdVal\Parsers\Factory\MetadataFactory;
+use AjdVal\Validators\ValidatorsInterface;
 use AjDic\AjDic;
 
 class ValidatorDto
@@ -42,7 +43,7 @@ class ValidatorDto
         return $clone;
     }
 
-    public function getParser(): ParserInterface|null
+    public function getParser(ValidatorsInterface|null $validator): ParserInterface|null
     {
     	 $parsers = $this->validatorBuilder->getParsers();
     	 
@@ -60,11 +61,15 @@ class ValidatorDto
 		
 		$parser->setContainer(new AjDic);
 
+		if (null !== $validator) {
+			$parser->setValidator($validator);
+		}
+
 		return $parser;
     }
 
-    public function getMetadataFactory(): MetadataFactoryInterface
+    public function getMetadataFactory(ValidatorsInterface|null $validator): MetadataFactoryInterface
     {
-    	return new MetadataFactory($this->getParser());
+    	return new MetadataFactory($this->getParser($validator));
     }
 }

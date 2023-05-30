@@ -2,14 +2,13 @@
 
 namespace AjdVal\Builder;
 
-use Doctrine\Common\Annotations\AnnotationReader;
-use Doctrine\Common\Annotations\Reader;
 use AjdVal\Factory\FactoryInterface;
 use AjdVal\Factory\FactoryTypeEnum;
 use AjdVal\Parsers\ParserInterface;
-use AjdVal\Parsers\AnnotationParser;
 use AjdVal\Validators\DefaultValidator;
 use AjdVal\Validators\ValidatorsInterface;
+use AjdVal\Validations\ValidationInterface;
+use AjdVal\Validations\DefaultValidation;
 use ReflectionClass;
 use InvalidArgumentException;
 use LogicException;
@@ -26,6 +25,7 @@ abstract class AbstractValidatorBuilder implements ValidatorBuilderInterface
     protected array $parsers = [];
 
     protected string $qualifiedValidatorClass;
+    protected string $qualifiedValidationClass;
 
 	abstract public function initialize(): ValidatorBuilderInterface;
 
@@ -145,6 +145,28 @@ abstract class AbstractValidatorBuilder implements ValidatorBuilderInterface
         return $this->qualifiedValidatorClass;
     }
 
+    public function setValidationClass(string|null $validation = null): ValidatorBuilderInterface
+    {
+         if (empty($validation)) {
+            $this->qualifiedValidationClass = DefaultValidation::class;
+
+            return $this;
+        }
+
+        if (! $this->checkValidationClass($validation)) {
+            return $this;
+        }
+
+        $this->qualifiedValidationClass = $validation;
+        
+        return $this;
+    }
+
+    public function getValidationClass(): string
+    {
+        return $this->qualifiedValidationClass;
+    }
+
     protected function checkValidatorClass(string $validator): bool
     {
         $reflection = new ReflectionClass($validator);
@@ -158,36 +180,16 @@ abstract class AbstractValidatorBuilder implements ValidatorBuilderInterface
         return true;
     }
 
-    public function setDoctrineAnnotationReader(?Reader $reader): ValidatorBuilderInterface
+    protected function checkValidationClass(string $validation): bool
     {
-        $this->annotationReader = $reader;
+        $reflection = new ReflectionClass($validation);
 
-        $this->parsers[] = new AnnotationParser($this->annotationReader);
+        $interfaces  = array_keys($reflection->getInterfaces());
 
-        return $this;
-    }
-
-    public function addDefaultDoctrineAnnotationReader(): ValidatorBuilderInterface
-    {
-        $this->annotationReader = $this->createAnnotationReader();
-
-        $this->parsers[] = new AnnotationParser($this->annotationReader);
-
-        return $this;
-    }
-
-    public function getAnnotationReader(): Reader
-    {
-        return $this->annotationReader;
-    }
-
-    protected function createAnnotationReader(): Reader
-    {
-        if (! class_exists(AnnotationReader::class)) {
-            throw new LogicException('Enabling annotation based constraint mapping requires the packages doctrine/annotations.');
+        if (!in_array(ValidationInterface::class, $interfaces, true)) {
+            return false;
         }
 
-        return new AnnotationReader();
-
+        return true;
     }
 }

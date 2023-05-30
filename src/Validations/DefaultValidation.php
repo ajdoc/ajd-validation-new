@@ -15,12 +15,15 @@ use AjdVal\Parsers\Metadata\MainMetadata;
 use AjdVal\Contracts\RuleInterface;
 use AjdVal\Builder\ValidatorBuilderInterface;
 use AjdVal\Utils\Utils;
+use AjdVal\Traits;
 use RuntimeException;
 use InvalidArgumentException;
 use Exception;
 
 class DefaultValidation implements ValidationInterface
 {
+    use Traits\ValidationsTrait;
+
 	private ContextInterface $context;
     private MetadataFactoryInterface $metadataFactory;
     private ValidatorDto $validatorDto;
@@ -89,21 +92,14 @@ class DefaultValidation implements ValidationInterface
 
     			if (! $result) {
                     $invalidFields[$field] = true;
-					$rule->setName($realField);
 
-                    if (! empty($rule->getAdhocErrors())) {
-                        $message = $rule->formatAdhocError();
-                    } else {
-                        $message = $rule->getRuleExceptionMessage();
-                    }
-
-                    $validator->buildError()
-                        ->atPath($realField)
-                        ->setMessage($message)
-                        ->setRoot($mapping['context']->getRoot()['value'])
-                        ->setInvalidValue($mapping['value'])
-                        ->setRule($rule)
-                        ->addViolation();
+                    $this->buildRuleError(
+                        $validator, 
+                        $rule, 
+                        $realField, 
+                        $mapping['context']->getRoot()['value'], 
+                        $mapping['value']
+                    );
 				}
     		}
     	}
@@ -111,7 +107,7 @@ class DefaultValidation implements ValidationInterface
     	return !in_array(true, array_values($invalidFields));
     }
 
-    protected function mainValidate(mixed $value, RuleInterface|array $rules = null, string|array $groups = null): static
+    public function mainValidate(mixed $value, RuleInterface|array $rules = null, string|array $groups = null): static
     {
         $groups = $groups ? $this->normalizeGroups($groups) : $this->defaultGroups;
 
@@ -392,18 +388,33 @@ class DefaultValidation implements ValidationInterface
                 	continue;
                 }
 
-                $this->validateGenericNode(
-                    $propertyValue,
-                    $object,
-                    $cacheKey.':'.$object::class.':'.$propertyName,
-                    $propertyMetadata,
-                    $pathAppend,
-                    $groups,
-                    $cascadedGroups,
-                    TraversalStrategy::IMPLICIT,
-                    $context
-                );
-                $this->setMappings($propertyValue, $propertyMetadata->getRules(), $context, $pathAppend);
+                if (is_array($propertyValue)) {
+                    $this->validateEachValueIn(
+                        $propertyValue,
+                        $object,
+                        $cacheKey.':'.$object::class.':'.$propertyName,
+                        $propertyMetadata,
+                        $pathAppend,
+                        $groups,
+                        $cascadedGroups,
+                        TraversalStrategy::IMPLICIT,
+                        $context
+                    );
+                } else {
+
+                    $this->validateGenericNode(
+                        $propertyValue,
+                        $object,
+                        $cacheKey.':'.$object::class.':'.$propertyName,
+                        $propertyMetadata,
+                        $pathAppend,
+                        $groups,
+                        $cascadedGroups,
+                        TraversalStrategy::IMPLICIT,
+                        $context
+                    );
+                    $this->setMappings($propertyValue, $propertyMetadata->getRules(), $context, $pathAppend);
+                }
             }
         }
 

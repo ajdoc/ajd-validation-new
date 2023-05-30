@@ -236,7 +236,7 @@ class ExpressionEngine
         $result      = array_map(fn ($rule) => [
             // extract name and statement and inject placeholders back
             'name'      => trim(strstr($rule, ':', true) ?: $rule),
-            'statement' => trim(strtr($rule, $placeholders)),
+            'statement' => trim(strtr(str_replace('~', '', $rule), $placeholders)),
         ], $rulesArray);
 
         Memoizer::pool(__METHOD__)->set($cacheKey, $result);
@@ -249,6 +249,7 @@ class ExpressionEngine
      *
      * @param string $expression The validation expression to evaluate.
      * @param array<string,bool> $results Statements results. An associative array where key is the statement and value is the result.
+     * @param bool $multi if result is a list
      *
      * @return array<string,string|bool> An associative array containing the resulted bitwise expression and its result.
      *
@@ -257,23 +258,41 @@ class ExpressionEngine
      *
      * @since 1.1.0
      */
-    public static function evaluateExpression(string $expression, array $results): array
+    public static function evaluateExpression(string $expression, array $results, bool $multi = false): array
     {
-        foreach ($results as $statement => $result) {
-            // (string)(int)(bool) is used to cast to a bit ('0' or '1')
-            $results[$statement] = $result = (string)(int)(bool)($result);
+        $realResult = [];
 
-            // replace the rule (statement) with its result (bit) to build up the bitwise expression
-            // here only the first occurrence of the rule (statement) will be replaced because some rules
-            // can be a substring of other rules, which will mess up the expression and render it useless
-            $expression = substr_replace($expression, $result, intval(strpos($expression, $statement)), strlen($statement));
+        if ($multi) {
+            foreach ($results as $key => $resultList) {
+                foreach ($resultList as $statement => $result) {
+                    $realResult[$key][$statement] = $result = (string)(int)(bool)($result);
+
+                    $expression = substr_replace($expression, $result, intval(strpos($expression, $statement)), strlen($statement));
+                }
+            }
+        } else {
+            $key = 0;
+            foreach ($results as $statement => $result) {
+                // (string)(int)(bool) is used to cast to a bit ('0' or '1')
+                $realResult[$key][$statement] = $result = (string)(int)(bool)($result);
+
+                // replace the rule (statement) with its result (bit) to build up the bitwise expression
+                // here only the first occurrence of the rule (statement) will be replaced because some rules
+                // can be a substring of other rules, which will mess up the expression and render it useless
+                $expression = substr_replace($expression, $result, intval(strpos($expression, $statement)), strlen($statement));
+                $key++;
+            }
         }
-        
+
         // the loop above will replace only the first occurrence of the rule
         // sometimes the same rule is added more than once, this should never happen
         // but to mitigate that error, replace any left over rules in the expression
         // with their corresponding bits (using the cached $bits array)
-        $expression = strtr($expression, $results);
+
+        foreach ($realResult as $results) {
+            $expression = strtr($expression, $results);
+        }
+        
         $result     = static::evaluateBitwiseExpression($expression);
 
         return compact('expression', 'result');

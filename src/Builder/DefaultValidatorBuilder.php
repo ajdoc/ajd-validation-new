@@ -4,7 +4,9 @@ namespace AjdVal\Builder;
 
 use AjdVal\Factory\RulesFactory;
 use AjdVal\Factory\RuleExceptionsFactory;
+use AjdVal\Factory\RuleHandlersFactory;
 use AjdVal\Validators\DefaultValidator;
+use AjdVal\Validations\DefaultValidation;
 use AjdVal\Parsers;
 
 class DefaultValidatorBuilder extends AbstractCompositeValidatorBuilder
@@ -16,8 +18,9 @@ class DefaultValidatorBuilder extends AbstractCompositeValidatorBuilder
 		return $this->addValidatorBuilder(
 						$this->setRulesFactory(new RulesFactory)
 							->setRulesExceptionFactory(new RuleExceptionsFactory)
+							->setRulesHandlerFactory(new RuleHandlersFactory)
 							->setValidatorClass(DefaultValidator::class)
-							->addDefaultDoctrineAnnotationReader()
+							->setValidationClass(DefaultValidation::class)
 							->addParser(new Parsers\AttributeParser)
 					)
 					->getValidatorBuilder();

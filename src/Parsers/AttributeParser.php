@@ -6,6 +6,7 @@ use ReflectionClass;
 use ReflectionAttribute;
 use AjdVal\Contracts\RuleInterface;
 use AjdVal\Parsers\Metadata\ClassMetadata;
+use AjdVal\Validators\ValidatorsInterface;
 use AjDic\AjDic;
 
 class AttributeParser extends AbstractParser
@@ -13,6 +14,7 @@ class AttributeParser extends AbstractParser
 	public function loadMetadata(ClassMetadata $class): array 
 	{
 		$container = $this->getContainer();
+		$validator = $this->getValidator();
 
 		$reflection = $class->getReflectionClass();
 		$className = $reflection->getName();
@@ -22,13 +24,9 @@ class AttributeParser extends AbstractParser
 		
 		foreach ($reflection->getProperties() as $property) {
 			 if ($property->getDeclaringClass()->name === $className) {
-			 	foreach ($this->getAttributes($property, $container) as $rule) {
+			 	foreach ($this->getAttributes($property, $container, $validator) as $rule) {
 			 		if ($rule instanceof RuleInterface) {
-			 			$data[$property->getName()]['rules'][ \spl_object_hash($rule)] = $rule;
-			 			$data[$property->getName()]['value'] = $property->getValue($instance);
-
 			 			$class->addPropertyRule($property->name, $rule);
-
 			 		}
 			 	}
 			 }
@@ -40,14 +38,20 @@ class AttributeParser extends AbstractParser
 	/**
      * @param \ReflectionClass|\ReflectionMethod|\ReflectionProperty $reflection
      */
-    private function getAttributes(object $reflection, AjDic|null $container = null): iterable
+    private function getAttributes(object $reflection, AjDic|null $container = null, ValidatorsInterface|null $validator = null): iterable
     {
     	foreach ($reflection->getAttributes(RuleInterface::class, \ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
+    		$arguments = $attribute->getArguments();
+    		$handlers = $this->resolveHandler($attribute->getName(), $container, $validator, $arguments);
+
     		if (! empty($container)) {
-    			yield $container->makeWith($attribute->getName(), $attribute->getArguments());
+    			$arguments = $validator?->processHandlerPreInit($arguments, $attribute->getName(), $handlers);
+    			$instance = $container->makeWith($attribute->getName(), $arguments);
     		} else {
-    			yield $attribute->newInstance();
+    			$instance = $attribute->newInstance();
     		}
+
+    		yield $this->resolveToExpr($instance, $attribute->getName(), $arguments, $container, $validator, $handlers);
         }
     }
 }

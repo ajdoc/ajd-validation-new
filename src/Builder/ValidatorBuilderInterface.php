@@ -2,9 +2,6 @@
 
 namespace AjdVal\Builder;
 
-use Doctrine\Common\Annotations\AnnotationReader;
-use Doctrine\Common\Annotations\Reader;
-
 use AjdVal\Factory\FactoryInterface;
 use AjdVal\Parsers\ParserInterface;
 
@@ -130,24 +127,17 @@ interface ValidatorBuilderInterface
     public function getValidatorClass(): string;
 
     /**
-     * Set Default Doctrine Annotation Reader
-     * @param  \Doctrine\Common\Annotations\Reader $reader
+     * Set the Validation Class
+     * @param  \AjdVal\Validators\ValidatorsInterface::class|null $validation
      *
      * @return \AjdVal\Builder\ValidatorBuilderInterface
      */
-    public function setDoctrineAnnotationReader(?Reader $reader): ValidatorBuilderInterface;
+    public function setValidationClass(string|null $validation = null): ValidatorBuilderInterface;
 
     /**
-     * Add Default Doctrine Annotation Reader
+     * Get the Validation Class
      *
-     * @return \AjdVal\Builder\ValidatorBuilderInterface
+     * @return \AjdVal\Validations\ValidationInterface
      */
-    public function addDefaultDoctrineAnnotationReader(): ValidatorBuilderInterface;
-
-    /**
-     * Gets Doctrine Annotation Reader
-     *
-     * @return \Doctrine\Common\Annotations\Reader
-     */
-    public function getAnnotationReader(): Reader;    
+    public function getValidationClass(): string;
 }

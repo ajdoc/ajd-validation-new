@@ -4,8 +4,11 @@ namespace AjdVal\Expression;
 
 use AjdVal\Validators\ValidatorsInterface;
 use AjdVal\Rules\Expr;
+use AjdVal\Contracts\RuleInterface;
+use AjdVal\Utils\Utils;
+use ReflectionClass;
 
-class ExpressionBuilderValidator extends ExpressionBuilder
+class ExpressionBuilderValidator extends ExpressionBuilder implements ValidatorsInterface
 {
 	protected array $ruleInstances = [];
 
@@ -31,17 +34,47 @@ class ExpressionBuilderValidator extends ExpressionBuilder
 				$definitions[$definition->getName()] = $rule->getExpressionDefinition();
 			}
 		}
+
+		if (empty($definitions)) {
+			return $this->validator;
+		}
 		
-		return $this->validator->addRuleValidator(new Expr($this, $this->validator, $definitions));
+		return $this->validator->addRuleValidator(Expr::createRule($this, $this->validator, $definitions));
 	}
 
 	public function validate(mixed $value, string $path = '')
 	{
-		return $this->endexpr()->validate($value, $path);
+		$validator = $this->endexpr()->validate($value, $path);
+
+		$this->reset();
+
+		return $validator;
 	}
 
 	public function getValidator(): ValidatorsInterface
 	{
 		return $this->validator;
 	}
+
+	 /**
+     * Adds a validation string or object as a group to the current validation expression.
+     *
+     * @param string|Expression $validation Validation expression string or object.
+     *
+     * @return static
+     */
+    public function add(string|ExpressionBuilder $expr): static
+    {
+        // make sure the added expression has no behavior
+        $expression = (new parent())
+            ->write((string)$expr)
+            ->normal()
+            ->build();
+
+        $this->open();
+        $this->write($expression);
+        $this->close();
+
+        return $this;
+    }
 }

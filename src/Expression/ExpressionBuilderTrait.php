@@ -49,6 +49,11 @@ trait ExpressionBuilderTrait
      */
     protected array $tokens = [];
 
+    public function reset()
+    {
+        $this->buffer = "";
+        $this->tokens = [];
+    }
 
     /**
      * Returns the current expression string.
@@ -440,7 +445,7 @@ trait ExpressionBuilderTrait
      *
      * @abstract Reimplements to change the way rules are built.
      */
-    protected function createRuleStatement(string $name, array $arguments): string
+    public function createRuleStatement(string $name, array $arguments): string
     {
         $name      = ExpressionEngine::createRuleName($name);
         $arguments = ExpressionEngine::createRuleArguments($arguments);

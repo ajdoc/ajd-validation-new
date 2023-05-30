@@ -2,7 +2,6 @@
 
 namespace AjdVal\Builder;
 
-use Doctrine\Common\Annotations\Reader;
 use AjdVal\Factory\AbstractFactory;
 use AjdVal\Factory\FactoryTypeEnum;
 use AjdVal\Factory\FactoryInterface;
@@ -38,7 +37,7 @@ abstract class AbstractCompositeValidatorBuilder extends AbstractValidatorBuilde
 
 		$parsers = [];
 		$qualifiedValidatorClass = '';
-		$annotationReader = null;
+		$qualifiedValidationClass = '';
 		
 		foreach ($this->validatorBuilders as $validatorBuilder) {
 			$rulesFactories = $this->checkReturnFactories($rulesFactories, $validatorBuilder->getRulesFactory());
@@ -55,8 +54,8 @@ abstract class AbstractCompositeValidatorBuilder extends AbstractValidatorBuilde
 				$qualifiedValidatorClass = $validatorBuilder->getValidatorClass();
 			}
 
-			if (! empty($validatorBuilder->getAnnotationReader())) {
-				$annotationReader = $validatorBuilder->getAnnotationReader();
+			if (! empty($validatorBuilder->getValidationClass())) {
+				$qualifiedValidationClass = $validatorBuilder->getValidationClass();
 			}
 		}
 
@@ -66,7 +65,7 @@ abstract class AbstractCompositeValidatorBuilder extends AbstractValidatorBuilde
 		$newFilterFactory = $this->createNewFactory($filterFactories, FactoryTypeEnum::TYPE_FILTERS);
 		$newLogicFactory = $this->createNewFactory($logicFactories, FactoryTypeEnum::TYPE_LOGICS);
 
-		return $this->createNewValidatorBuilder($newRuleFactory, $newRuleHandlerFactory, $newRuleExceptionFactory, $newFilterFactory, $newLogicFactory, $parsers, $qualifiedValidatorClass, $annotationReader)->initialize();
+		return $this->createNewValidatorBuilder($newRuleFactory, $newRuleHandlerFactory, $newRuleExceptionFactory, $newFilterFactory, $newLogicFactory, $parsers, $qualifiedValidatorClass, $qualifiedValidationClass)->initialize();
 	}
 
 	protected function checkReturnFactories(array $factories, ?FactoryInterface $factory): array
@@ -176,6 +175,8 @@ abstract class AbstractCompositeValidatorBuilder extends AbstractValidatorBuilde
 						if (is_string($factory)) {
 							if ($this->checkValidatorClass($factory)) {
 								$chain->setValidatorClass($factory);
+							} else if ($this->checkValidationClass($factory)) {
+								$chain->setValidationClass($factory);
 							}
 						}
 					}

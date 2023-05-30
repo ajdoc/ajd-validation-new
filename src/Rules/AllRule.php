@@ -17,12 +17,15 @@ class AllRule extends AbstractAll
 
 		$this->setContext($this->getContextFactory()->createContext(['value' => $value, 'root' => $this]));
 
-		$validation = new Validations\DefaultValidation($this->getContext(), $this->ruleValidatorDto->getMetadataFactory(), $this->ruleValidatorDto);
+		$validationClass = $this->getValidationClass();
+
+		$validator = $this->getValidator() ?? null;
+		$validation = new $validationClass($this->getContext(), $this->ruleValidatorDto->getMetadataFactory($validator), $this->ruleValidatorDto);
 
 		if ('' !== $path) {
 			$validation->filterPath($path);
 		}
-
+		
 		$result = $validation->validate($value, $rules);
 
 		$this->removeRules();

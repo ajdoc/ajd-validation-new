@@ -14,7 +14,7 @@ use AjdVal\Expression\ExpressionBuilderValidator;
 
 use LogicException;
 
-class DefaultValidator extends Rules\AllRule implements ValidatorsInterface
+class DefaultValidator extends Rules\AllRule implements ValidatorsInterface, CanBeExpressiveInterface
 {
 	use Traits\ValidatorsTrait;
 	use Traits\ValidatorExtenderTrait;
@@ -27,6 +27,7 @@ class DefaultValidator extends Rules\AllRule implements ValidatorsInterface
 		parent::__construct();
 		
 		$this->setValidatorDto(static::getValidatorDto());
+		$this->setValidator($this);
 	}
 
     public static function setSendToExpressionValidator(bool $send): void
@@ -59,7 +60,7 @@ class DefaultValidator extends Rules\AllRule implements ValidatorsInterface
 		return static::create();
 	}
 
-	protected static function getValidatorDto(): ValidatorDto
+	public static function getValidatorDto(): ValidatorDto
 	{
 		if (empty(static::$validatorDto)) {
 			static::$validatorDto = new ValidatorDto;
@@ -111,21 +112,7 @@ class DefaultValidator extends Rules\AllRule implements ValidatorsInterface
    	{
    		$validatorDto = static::getValidatorDto();
 
-   		$resovler = function(AjDic $container, string $qualifiedClass, array $paramaters) use($rule) {
-   			$instance = $container->makeWith($qualifiedClass, $paramaters);
-   			$expressionRule = new Expression\ExpressionRuleCreator;
-
-   			$newRule = $expressionRule->name($rule)
-   			->callback(function(mixed $input) use($paramaters, $instance, $container) {
-   				return $container->call([$instance, 'validate'], [$input]);
-   			})
-   			->parameters(['@input'])
-   			->setRuleInstance($instance);
-
-   			$instance->setExpressionDefinition($newRule);
-
-   			return $instance;
-   		};
+   		$resovler = static::resolveRule($validatorDto->getValidatorBuilder(), $rule, $arguments);
 
    		/*echo '<pre>';
    		print_r($validatorDto->getValidatorBuilder()->getRulesFactory()->getNamespaces());*/

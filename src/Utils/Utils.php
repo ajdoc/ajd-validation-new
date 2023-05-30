@@ -2,12 +2,20 @@
 
 namespace AjdVal\Utils;
 
+use AjdVal\Factory;
+
 final class Utils
 {
 	public const DS = DIRECTORY_SEPARATOR;
 
 	private function __construct()
     {
+    }
+
+    public static function getShortNameClass($class, Factory\FactoryTypeEnum $suffix = Factory\FactoryTypeEnum::TYPE_RULES)
+    {
+    	$segments = \explode('\\', $class);
+    	return \strtolower(\str_replace([$suffix->value], [''], \end($segments)));
     }
 
 	public static function appendPropertyPath(string $basePath, string $subPath): string

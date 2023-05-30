@@ -159,7 +159,7 @@ class ValidationExceptions extends Exception implements ExceptionInterface
 
         $message_str = static::$defaultMessages[$this->mode][$messageKey];
         
-        $message = $this->replaceErrorPlaceholder($this->getParams(), $message_str);
+        $message = static::replaceErrorPlaceholder($this->getParams(), $message_str);
         
         $appendError = $this->getParam('appendError');
         
