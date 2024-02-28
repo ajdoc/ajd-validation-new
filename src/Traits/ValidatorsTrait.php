@@ -29,9 +29,11 @@ trait ValidatorsTrait
 			$paramaters = $self::processHandlerPreInit($paramaters, $qualifiedClass, $handlers);
 			$instance = $container->makeWith($qualifiedClass, $paramaters);
 
+			$instance->setName($rule);
+
 			ValidatorsTrait::initRuleHandlers($handlers, $instance, $paramaters);
    			
-   			ValidatorsTrait::createNewExpressionRule($rule, $instance, $container, $paramaters);
+   			// ValidatorsTrait::createNewExpressionRule($rule, $instance, $container, $paramaters);
 
    			return $instance;
 		};
@@ -74,7 +76,7 @@ trait ValidatorsTrait
 		
 		if (! empty($ruleHandlerStack)) {
 			foreach ($ruleHandlerStack as $handlerKey => $handlerStack) {
-				if (!class_exists($handlerStack)) {
+				if (! class_exists($handlerStack)) {
 					continue;
 				}
 

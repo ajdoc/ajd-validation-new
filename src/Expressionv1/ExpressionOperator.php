@@ -8,13 +8,13 @@ enum ExpressionOperator: string
 {
     use SmartEnumTrait;
 
-    case Not   = '!';
+    case Not   = '~';
 
-    case And   = '&&';
+    case And   = '&';
 
-    case Or    = '||';
+    case Or    = '|';
 
-    case Xor   = 'xor';
+    case Xor   = '^';
 
     case Open  = '(';
 

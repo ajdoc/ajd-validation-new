@@ -52,7 +52,7 @@ trait RuleCreatorTrait
 
     	ValidatorsTrait::initRuleHandlers($handlers, $ruleInstance, $arguments);
    			
-   		ValidatorsTrait::createNewExpressionRule($rule, $ruleInstance, $container, $arguments);
+   		// ValidatorsTrait::createNewExpressionRule($rule, $ruleInstance, $container, $arguments);
 
    		$validatorClass = $validatorBuilder->getValidatorClass();
 

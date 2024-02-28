@@ -18,6 +18,7 @@ class DefaultValidator extends Rules\AllRule implements ValidatorsInterface, Can
 {
 	use Traits\ValidatorsTrait;
 	use Traits\ValidatorExtenderTrait;
+	use Traits\ValidatorStateTrait;
 
 	protected static ValidatorDto|null $validatorDto = null;
 	protected static bool $sendToExpressionValidator = false;

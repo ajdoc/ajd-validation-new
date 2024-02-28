@@ -239,7 +239,7 @@ abstract class AbstractRule implements Contracts\RuleInterface
 
         return array_filter(
             array_map(
-                function (Contracts\RuleInterface $rule) use ($value, $forceAssert): ?ValidationExceptions {
+                function (Contracts\RuleInterface $rule) use ($value, $forceAssert): ValidationExceptions|null {
                     try {
                     	$rule->setValidatorDto($this->ruleValidatorDto);
                         $rule->assert($value, null, $forceAssert);

@@ -14,11 +14,15 @@ class Expr extends AbstractRule implements RuleIsExpressionInterface
 
 	public static RuleHandlerStrategy $ruleHandlerStrategy = RuleHandlerStrategy::NotAutoCreate;
 	protected array $definitions = [];
+	protected array $sometimes = [];
+	protected array $ruleArguments = [];
 	
 	public function __construct(
 		protected HandlerDto|null $handler = null
 	) {
 		$this->definitions = $this->handler?->definitions ?? [];
+		$this->sometimes = $this->handler?->sometimes ?? [];
+		$this->ruleArguments = $this->handler?->ruleArguments ?? [];
 	}
 
 	public static function setRuleHandlerStack(): void 
@@ -38,7 +42,7 @@ class Expr extends AbstractRule implements RuleIsExpressionInterface
 		if (empty($this->handler?->definitions)) {
 			return false;
 		}
-
+		
 		return $this->validateOne($value, $this->handler?->expressionBuilder);
 	}
 }

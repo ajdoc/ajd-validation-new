@@ -10,7 +10,18 @@
     "minimum-stability": "dev",
     "require": {
         "php": ">=8.1",
-        "ajd/ajd-dic": "dev-main"
+        "ajd/ajd-dic": "dev-main",
+        "ajd/ajd-expression": "dev-main"
+    },
+    "repositories": {
+        "ajd/ajd-expression": {
+            "type": "git",
+            "url": "https://github.com/ajdoc/ajd-expression.git",
+            "reference": "main",
+            "options": {
+                "symlink": true
+            }
+        }
     },
     "autoload": {
         "psr-4": {
@@ -19,7 +30,6 @@
     },
     "require-dev": {
         "pestphp/pest": "2.x-dev",
-        "doctrine/annotations": "^1.13|^2",
         "marwanalsoltany/mighty": "^1.2@dev"
     },
     "config": {

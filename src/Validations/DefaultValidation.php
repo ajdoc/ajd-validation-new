@@ -585,7 +585,7 @@ class DefaultValidation implements ValidationInterface
         return $cacheKey;
     }
 
-    private function setMappings(mixed $value, array $rules, ContextInterface $context, $path = null): void
+    private function setMappings(mixed $value, array $rules, ContextInterface $context, mixed $path = null): void
     {
     	$this->mappings[$path ?? 'value'] = [
     		'rules' => $rules,
